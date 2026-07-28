@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>AR Emotion System</title>
+    <style>
+    /* Кнопка "Выйти из обучения" в углу */
+    #tutorial-skip {
+        position: absolute;
+        top: 30px;
+        right: 30px;
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid white;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-family: 'Pangolin', cursive;
+        font-size: 18px;
+        transition: all 0.3s;
+        z-index: 100000;
+    }
+
+    #tutorial-skip:hover {
+        background: var(--danger);
+        border-color: var(--danger);
+    }
+
+    /* Анимированная стрелка */
+    /* Анимированная стрелка */
+    #tutorial-arrow {
+        display: none; /* Скрыта до второго шага */
+        position: absolute;
+        width: 90px; /* Размер стрелки */
+        z-index: 100000;
+        pointer-events: none; /* Чтобы мышка сквозь нее проходила */
+        filter: drop-shadow(0 5px 15px rgba(0,0,0,0.4));
+        /* Анимация "тыкания" вправо */
+        animation: pointRight 0.6s ease-in-out infinite alternate;
+    }
+
+    @keyframes pointRight {
+        from { transform: translateX(0); }
+        to { transform: translateX(20px); }
+    }
+
+    @keyframes pointDown {
+        from { transform: translateY(0); }
+        to { transform: translateY(20px); }
+    }
+
+    .tutorial-highlight {
+        z-index: 100000 !important;
+        background: white !important;
+        color: var(--primary) !important;
+        box-shadow: 0 0 30px rgba(255, 255, 255, 0.8), 0 0 60px var(--primary-glow) !important;
+        pointer-events: auto !important; /* Делаем её кликабельной */
+        border-radius: 10px;
+    }
+
+    /*ОКНО СОЗДАТЕЛЕЙ*/
+    #creators-overlay {
+        display: none; /* Скрыто по умолчанию */
+        position: fixed;
+        top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(8px);
+        z-index: 99999;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .creators-box {
+        background: rgba(255, 255, 255, 0.95);
+        border: 4px solid var(--primary);
+        border-radius: 25px;
+        padding: 40px;
+        text-align: center;
+        max-width: 850px;
+        width: 90%;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        font-family: 'Pangolin', cursive;
+    }
+
+    .creators-box h2 {
+        margin-top: 0;
+        margin-bottom: 30px;
+        color: var(--primary);
+        font-family: 'Rubik Bubbles', cursive;
+        font-size: 36px;
+        letter-spacing: 2px;
+    }
+
+    /* Сетка участников */
+    .team-grid {
+        display: flex;
+        flex-wrap: wrap; /* Разрешает перенос на новую строку */
+        justify-content: center; /* Центрирует элементы */
+        gap: 25px;
+        margin-bottom: 35px;
+    }
+
+    /* Карточка одного участника */
+    .team-member {
+        background: rgba(0, 0, 0, 0.02);
+        border-radius: 20px;
+        padding: 20px 15px;
+        width: 140px;
+        border: 2px solid transparent;
+        transition: transform 0.2s, border-color 0.2s, background 0.2s;
+    }
+
+    .team-member:hover {
+        transform: translateY(-8px);
+        border-color: var(--primary);
+        background: white;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+    }
+
+    /* Кружок для фото */
+    .member-photo {
+        width: 110px;
+        height: 110px;
+        border-radius: 50%;
+        background-color: #cbd5e1;
+        background-size: cover;
+        background-position: center;
+        margin: 0 auto 15px;
+        border: 4px solid white;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+    }
+
+    .member-name {
+        font-weight: 700;
+        font-size: 20px;
+        color: var(--text-main);
+        margin-bottom: 5px;
+    }
+
+    .member-role {
+        font-size: 15px;
+        color: var(--primary);
+        font-weight: bold;
+        line-height: 1.2;
+    }
+
+    /* Кнопка закрытия */
+    .btn-close-creators {
+        background: var(--primary);
+        color: white;
+        border: none;
+        padding: 12px 40px;
+        border-radius: 15px;
+        font-size: 20px;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: 'Pangolin', cursive;
+
+        box-shadow: 0 6px 15px var(--primary-glow);
+        transition: transform 0.2s, background 0.2s;
+    }
+
+    .btn-close-creators:hover {
+        transform: scale(1.05);
+        background: var(--hover-color);
+    }
+
+
+    .btn-close-creators:active {
+        transform: scale(0.95);
+    }
+
+    /* Базовые настройки для всех облаков */
+    .cloud {
+        position: absolute;
+        z-index: 1; /* Облака будут под текстом кнопок, но поверх фона меню */
+        pointer-events: none; /* Чтобы они не перекрывали клики по кнопкам */
+        animation: floatCloud linear infinite; /* Запуск бесконечной анимации */
+    }
+
+    /* Индивидуальные настройки: размер, высота, скорость и прозрачность */
+    .cloud-1 { top: 15%; width: 180px; animation-duration: 45s; animation-delay: 0s; opacity: 0.9; }
+    .cloud-2 { top: 40%; width: 250px; animation-duration: 65s; animation-delay: -20s; opacity: 0.6; }
+    .cloud-3 { top: 65%; width: 150px; animation-duration: 50s; animation-delay: -10s; opacity: 0.8; }
+    .cloud-4 { top: 80%; width: 300px; animation-duration: 75s; animation-delay: -40s; opacity: 0.5; }
+    .cloud-5 { top: 10%; width: 100px; animation-duration: 110s; animation-delay: -30s; opacity: 0.35; }
+    .cloud-6 { top: 55%; width: 130px; animation-duration: 130s; animation-delay: -80s; opacity: 0.3; }
+
+    /* анимация: движение от левого края за правый */
+    @keyframes floatCloud {
+        0% { transform: translateX(-300px); left: 0; }
+        100% { transform: translateX(100vw); left: 0; }
+    }
+    /*ЛОКАЛЬНЫЕ ШРИФТЫ */
+    @font-face {
+    font-family: 'Rubik Bubbles';
+    src: url('static/fonts/RubikBubbles-Regular.ttf') format('truetype');
+    }
+    @font-face {
+    font-family: 'Pangolin';
+    src: url('static/fonts/Pangolin-Regular.ttf') format('truetype');
+}
+
+    /*СТИЛИ ОБУЧЕНИЯ*/
+    #tutorial-overlay {
+        display: none; /* Скрыто по умолчанию */
+        position: fixed;
+        top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0, 0, 0, 0.6); /* Темный фон поверх всего */
+        backdrop-filter: blur(8px);
+        z-index: 99999;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .tutorial-content {
+        display: flex;
+        align-items: flex-end;
+        gap: 30px;
+        max-width: 900px;
+        width: 90%;
+    }
+
+    /* Настройки Обла */
+    #tutorial-mascot {
+        width: 350px;
+        filter: drop-shadow(0 15px 25px rgba(0,0,0,0.3));
+        transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* Позиции Обла  */
+    .mascot-left { order: 1; transform: scaleX(1); }
+    .mascot-right { order: 3; transform: scaleX(-1); } /* Зеркалим его, если он справа */
+
+    /* Диалоговое окно */
+    .tutorial-dialog-box {
+        order: 2;
+        position: relative;
+        background: rgba(255, 255, 255, 0.95);
+        border: 4px solid var(--primary);
+        border-radius: 25px;
+        padding: 45px 35px 30px;
+        flex-grow: 1;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        font-family: 'Pangolin', cursive;
+    }
+
+    .tutorial-name {
+        position: absolute;
+        top: -25px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--primary);
+        color: white;
+        padding: 8px 40px;
+        border-radius: 20px;
+        font-family: 'Rubik Bubbles', cursive;
+        font-size: 26px;
+        border: 4px solid white;
+        box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+    }
+
+    #tutorial-text {
+        font-size: 24px;
+        color: var(--text-main);
+        line-height: 1.5;
+        margin: 0 0 30px 0;
+    }
+
+    #tutorial-action-btn {
+        background: var(--primary);
+        color: white;
+        border: none;
+        padding: 15px 40px;
+        border-radius: 15px;
+        font-size: 22px;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: 'Pangolin', cursive;
+        float: right;
+        box-shadow: 0 6px 15px var(--primary-glow);
+        transition: transform 0.2s, background 0.2s;
+    }
+
+    #tutorial-action-btn:hover {
+        transform: scale(1.05);
+        background: var(--hover-color);
+    }
+
+    /* Класс для блокировки всех остальных кнопок в меню */
+    .menu-btn-disabled {
+        pointer-events: none !important; /* запрещаем клики */
+        opacity: 0.4 !important; /* Делаем их полупрозрачными */
+        filter: grayscale(80%); /* Обесцвечиваем, чтобы показать недоступность */
+    }
+
+    .mascot-cloud {
+        position: absolute;
+        z-index: 20;
+        width: 300px;
+        right: 5vw;
+        bottom: 10vh;
+        cursor: pointer;
+        transition: all 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+        will-change: transform, top, left, right, bottom;
+
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    /*СТИЛИ ГОВОРЯЩЕГО ОБЛАЧКА*/
+    #mascot-speech {
+        background: white;
+        color: #000080;
+        padding: 12px 24px;
+        border-radius: 20px;
+        border: 3px solid var(--primary);
+        font-family: 'Pangolin', cursive;
+        font-size: 20px;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 5px;
+        z-index: 21;
+        opacity: 1;
+        transition: opacity 0.3s ease-out;
+        position: relative;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        animation: floatSpeech 3s ease-in-out infinite;
+    }
+
+    #mascot-speech::after {
+        content: ''; position: absolute; bottom: -12px; left: 50%;
+        transform: translateX(-50%);
+        border-width: 12px 12px 0; border-style: solid;
+        border-color: var(--primary) transparent transparent transparent;
+    }
+
+    #mascot-speech::before {
+        content: ''; position: absolute; bottom: -7px; left: 50%;
+        transform: translateX(-50%);
+        border-width: 10px 10px 0; border-style: solid;
+        border-color: white transparent transparent transparent;
+        z-index: 1;
+    }
+
+    @keyframes floatSpeech {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-8px); }
+    }
+
+    /* Настройки для частичек воздуха */
+    .air-particle {
+        position: absolute;
+        width: 100px;
+        pointer-events: none;
+        z-index: 10;
+        opacity: 1;
+        transition: all 1s ease-out; /* Плавное растворение */
+    }
+    /*ПАЛИТРА ЦВЕТОВ */
+    :root {
+        --primary: #3b82f6;
+        --primary-glow: rgba(59, 130, 246, 0.3);
+        --bg-glass: rgba(255, 255, 255, 0.9);
+        --text-main: #0f172a;
+        --text-muted: #64748b;
+        --success: #10b981;
+        --danger: #ef4444;
+    }
+
+    /*БАЗОВЫЕ НАСТРОЙКИ*/
+    body, html {
+        margin: 0; padding: 0; width: 100%; height: 100%;
+        overflow: hidden;
+        font-family: 'Segoe UI', Roboto, Helvetica, sans-serif;
+    }
+
+    /*ЭКРАН МЕНЮ */
+    #menu-screen {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-image: url('static/images/bg_clouds.jpg');
+        background-size: cover;
+        background-position: center;
+        font-family: 'Rubik Bubbles', cursive;
+        z-index: 100;
+    }
+
+    h1 {
+        color: white;
+        font-size: 5rem;
+        text-shadow: 3px 3px 0px #bba6d2;
+        margin-bottom: 30px;
+        letter-spacing: 3px;
+    }
+
+    .menu-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .menu-btn {
+        background: none;
+        border: none;
+        color: #b05c75;
+        font-family: 'Rubik Bubbles', cursive;
+        font-size: 2.5rem;
+        cursor: pointer;
+        text-decoration: underline;
+        text-decoration-thickness: 4px;
+        text-underline-offset: 10px;
+        transition: transform 0.2s, color 0.2s;
+    }
+
+    .menu-btn:hover {
+        transform: scale(1.1);
+        color: #8a455a;
+    }
+
+    /* ОСНОВНОЙ ЭКРАН ПРОГРАММЫ */
+    #app-screen {
+        display: none;
+        width: 100%; height: 100%;
+        background: #f8fafc;
+        position: relative;
+    }
+
+    /* КАМЕРА И РАМКИ */
+    .video-wrapper {
+        position: fixed; top: 0; left: 0;
+        width: 100vw; height: 100vh;
+        z-index: 1; display: flex; justify-content: center; align-items: center;
+        background: #f8fafc;
+    }
+
+    #video {
+        width: 100vw; height: 100vh;
+        object-fit: cover;
+        transform: scaleX(-1);
+        transition: opacity 0.5s ease;
+        opacity: 0;
+    }
+
+    #faces-container {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        pointer-events: none; z-index: 5;
+    }
+
+    .face-box {
+        position: absolute;
+        border: 3px solid var(--primary);
+        box-shadow: 0 0 20px var(--primary-glow);
+        border-radius: 12px;
+    }
+
+    .face-box::before, .face-box::after {
+        content: ''; position: absolute; width: 24px; height: 24px;
+        border: 4px solid #fff; pointer-events: none; border-radius: 4px;
+    }
+    .face-box::before { top: -6px; left: -6px; border-right: none; border-bottom: none; }
+    .face-box::after { bottom: -6px; right: -6px; border-left: none; border-top: none; }
+
+    /*(HUD) */
+    .face-hud {
+        position: absolute;
+        top: 10%; left: calc(100% + 24px);
+        background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(15px);
+        border-left: 6px solid var(--primary);
+        padding: 24px 30px; border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        min-width: 300px; display: flex; flex-direction: column; gap: 10px;
+        font-family: 'Pangolin', cursive;
+        background-image: url('static/images/hud_bg.jpg');
+        background-size: cover;
+        background-position: center;
+        background-color: rgba(255, 255, 255, 0.9);
+    }
+
+    .hud-id { font-size: 16px; font-weight: 700; color: var(--text-muted); letter-spacing: 1.5px;
+    text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff;
+    }
+    .hud-emotion { font-size: 18px; font-weight: 700; color: #000000; margin: 0; letter-spacing: 1px;
+    text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff;
+    }
+    .hud-phrase { font-size: 30px; font-weight: 800; color: var(--primary); line-height: 1.2; margin-top: 10px; font-style: normal;
+    text-shadow:
+            2px 2px 0 #fff, -2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff,
+            0 2px 0 #fff, 0 -2px 0 #fff, 2px 0 0 #fff, -2px 0 0 #fff;
+    }
+
+    /* Пиксельная иконка эмоции */
+    .face-icon {
+        position: absolute;
+        width: 80px; height: 80px;
+        transform: translate(-50%, -50%);
+        z-index: 10;
+        top: -40px; left: -10px;
+    }
+
+    /* ДАШБОРД */
+    .dashboard-card {
+        position: fixed; bottom: 40px; right: 40px; z-index: 10;
+
+        background-image: url('static/images/panel_bg.jpg');
+        background-size: cover;
+        background-position: center;
+
+        border: 1px solid rgba(255,255,255,0.8); border-radius: 20px;
+        padding: 28px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        width: 280px; color: var(--text-main);
+
+        font-family: 'Pangolin', cursive;
+    }
+
+    .stats-header {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 24px;
+    }
+    .btn-start {
+        flex: 1.5;
+        background: var(--primary); color: white; border: none; padding: 12px 24px;
+        border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer;
+        box-shadow: 0 6px 15px var(--primary-glow); transition: transform 0.1s;
+        font-family: 'Pangolin', cursive;
+    }
+    .btn-start:active { transform: scale(0.97); }
+
+    .btn-back {
+        flex: 1;
+        background: var(--text-muted); color: white; border: none; padding: 12px 24px;
+        border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer;
+        box-shadow: 0 6px 15px rgba(0,0,0,0.1); transition: transform 0.1s;
+        font-family: 'Pangolin', cursive; /* Шрифт кнопки */
+    }
+
+    .btn-settings {
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .btn-settings img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        mix-blend-mode: multiply;
+    }
+
+    .btn-settings:hover {
+        transform: scale(1.1) rotate(45deg);
+    }
+
+    .btn-settings:active {
+        transform: scale(0.95) rotate(45deg);
+    }
+    #status {
+        display: none !important;
+    }
+    .btn-back:active { transform: scale(0.97); }
+
+    .emotion-row { margin-bottom: 14px; }
+    .row-info { display: flex; justify-content: space-between; font-size: 1rem; margin-bottom: 6px; font-weight: 700; }
+    .progress-bar { height: 8px; background: rgba(0,0,0,0.05); border-radius: 6px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.2s ease-out; }
+
+     /* ОКНО НАСТРОЕК*/
+    #settings-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(8px);
+        z-index: 99999;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .settings-box {
+        background: rgba(255, 255, 255, 0.95);
+        border: 4px solid var(--primary);
+        border-radius: 25px;
+        padding: 40px;
+        width: 450px;
+        max-width: 90%;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        font-family: 'Pangolin', cursive;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .settings-box h2 {
+        margin: 0 0 10px 0;
+        color: var(--primary);
+        font-family: 'Rubik Bubbles', cursive;
+        font-size: 32px;
+        text-align: center;
+    }
+
+    .setting-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 18px;
+        font-weight: bold;
+        color: var(--text-main);
+        padding-bottom: 10px;
+        border-bottom: 2px dashed rgba(59, 130, 246, 0.2);
+    }
+
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 28px;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+        position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #cbd5e1; transition: .4s; border-radius: 34px;
+    }
+    .toggle-slider:before {
+        position: absolute; content: ""; height: 20px; width: 20px;
+        left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%;
+    }
+    .toggle-switch input:checked + .toggle-slider { background-color: var(--primary); }
+    .toggle-switch input:checked + .toggle-slider:before { transform: translateX(22px); }
+
+    .settings-select {
+        padding: 8px; border-radius: 10px; border: 2px solid var(--primary);
+        font-family: 'Pangolin', cursive; font-size: 16px; outline: none;
+    }
+    .settings-range {
+        width: 120px; accent-color: var(--primary);
+    }
+
+    .btn-close-settings {
+        background: var(--primary); color: white; border: none; padding: 12px;
+        border-radius: 15px; font-size: 20px; font-weight: 700; cursor: pointer;
+        font-family: 'Pangolin', cursive; margin-top: 10px;
+        box-shadow: 0 6px 15px var(--primary-glow); transition: transform 0.2s;
+    }
+    .btn-close-settings:active { transform: scale(0.95); }
+
+    /* CSS update needed inside <style> tag */
+
+    .tutorial-content.mascot-pos-left {
+        justify-content: flex-start;
+    }
+
+    .tutorial-content.mascot-pos-right {
+        flex-direction: row-reverse;
+        justify-content: flex-start;
+    }
+
+    .tutorial-highlight {
+        z-index: 100000 !important;
+        background: white !important;
+        color: var(--primary) !important;
+        box-shadow: 0 0 30px rgba(255, 255, 255, 0.8), 0 0 60px var(--primary-glow) !important;
+        pointer-events: auto !important;
+        border-radius: 10px;
+    }
+
+    .dashboard-card {
+        transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .dashboard-card.collapsed {
+        transform: translateX(calc(100% + 40px));
+    }
+
+    .dashboard-toggle-btn {
+        position: absolute;
+        top: 50%;
+        left: -30px;
+        transform: translateY(-50%);
+        width: 30px;
+        height: 60px;
+        background: var(--primary);
+        color: white;
+        border: 2px solid white;
+        border-right: none;
+        border-radius: 15px 0 0 15px;
+        cursor: pointer;
+        font-family: 'Pangolin', cursive;
+        font-size: 22px;
+        font-weight: 900;
+        box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding-bottom: 3px;
+        transition: background 0.2s;
+    }
+
+    .dashboard-toggle-btn:hover {
+        background: #2563eb;
+    }
+</style>
+</head>
+<body>
+
+    <div id="menu-screen">
+        <img src="static/images/cloud.png" class="cloud cloud-1">
+        <img src="static/images/cloud.png" class="cloud cloud-2">
+        <img src="static/images/cloud.png" class="cloud cloud-3">
+        <img src="static/images/cloud.png" class="cloud cloud-4">
+        <img src="static/images/cloud.png" class="cloud cloud-5">
+        <img src="static/images/cloud.png" class="cloud cloud-6">
+        <h1>Эмоцинатор</h1>
+        <div class="mascot-cloud" id="mascot">
+            <div id="mascot-speech">Привет! Чем могу помочь?</div>
+            <img src="static/gifs/_____-ezgif.com-cut.gif" style="width: 100%; height: auto; pointer-events: none;">
+        </div>
+
+        <div class="menu-buttons">
+            <button class="menu-btn" id="scan-btn" onclick="openApp()">Сканирование лица</button>
+            <button class="menu-btn" id="guide-btn">Руководство пользования</button>
+            <button class="menu-btn" id="creators-btn">Создатели</button>
+            <button class="menu-btn" onclick="exitApp()" style="margin-top: 20px; color: #6b3648;">ВЫХОД</button>
+        </div>
+    </div>
+
+    <div id="app-screen">
+        <div class="video-wrapper">
+            <video id="video" autoplay playsinline></video>
+            <div id="faces-container"></div>
+        </div>
+
+        <div class="dashboard-card">
+            <button id="dashboard-toggle-btn" class="dashboard-toggle-btn">&lt;</button>
+            <div class="stats-header">
+                <select id="camera-select" style="display: none; flex: 1; padding: 12px; border-radius: 10px; font-family: 'Pangolin', cursive; border: 1px solid var(--primary); outline: none;"></select>
+                <button class="btn-start" id="startBtn">Старт</button>
+                <button class="btn-back" onclick="closeApp()">Меню</button>
+                <button class="btn-settings" id="settings-btn" title="Настройки">
+                    <img src="static/images/gear.png" alt="Настройки">
+                </button>
+                <div id="status" style="font-size: 14px; font-weight: 800; color: var(--danger);">● OFFLINE</div>
+            </div>
+            <div id="emotion-list"></div>
+        </div>
+    </div>
+
+    <div id="creators-overlay">
+        <div class="creators-box">
+            <h2>Команда Эмоцинатора</h2>
+
+            <div class="team-grid">
+                <div class="team-member">
+                    <div class="member-photo" style="background-image: url('static/images/sasha.jpg');"></div>
+                    <div class="member-name">Александра Медина</div>
+                    <div class="member-role">Backend разработчик</div>
+                </div>
+
+                <div class="team-member">
+                    <div class="member-photo" style="background-image: url('static/images/dobrik.jpg');"></div>
+                    <div class="member-name">Добрыня Чаулкин</div>
+                    <div class="member-role">Дизайнер</div>
+                </div>
+
+                <div class="team-member">
+                    <div class="member-photo" style="background-image: url('static/images/slava.jpg');"></div>
+                    <div class="member-name">Вячеслав Козыренко</div>
+                    <div class="member-role">Аналитик</div>
+                </div>
+
+                <div class="team-member">
+                    <div class="member-photo" style="background-image: url('static/images/me.jpg');"></div>
+                    <div class="member-name">Даниил Мачулин</div>
+                    <div class="member-role">Frontend разработчик</div>
+                </div>
+
+                <div class="team-member">
+                    <div class="member-photo" style="background-image: url('static/images/nikita (2).jpg');"></div>
+                    <div class="member-name">Никита Мартынов</div>
+                    <div class="member-role">Тестировщик</div>
+                </div>
+            </div>
+
+            <button class="btn-close-creators" id="close-creators-btn">Круто!</button>
+        </div>
+    </div>
+
+    <div id="tutorial-overlay">
+        <button id="tutorial-skip">Выйти из обучения ×</button>
+
+        <img src="static/images/arrow_left.png" id="tutorial-arrow">
+
+        <div class="tutorial-content">
+            <img src="static/images/obl_static.png" id="tutorial-mascot" class="mascot-left">
+
+            <div class="tutorial-dialog-box">
+                <div class="tutorial-name">Обл</div>
+                <p id="tutorial-text">Привет! Я Обл — твой пушистый проводник в мир эмоций! Сейчас я покажу тебе, как работает наш Эмоцинатор.<br><br>Готов начать?</p>
+                <button id="tutorial-action-btn">Поехали!</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-overlay">
+        <div class="settings-box">
+            <h2>Настройки</h2>
+
+            <div class="setting-item">
+                <label>Зеркальное отображение камеры</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="setting-mirror" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <label>Разрешение видео</label>
+                <select id="setting-resolution" class="settings-select">
+                    <option value="1080">1080p (Высокое)</option>
+                    <option value="720">720p (Стандартное)</option>
+                    <option value="480">480p (Экономное)</option>
+                </select>
+            </div>
+
+            <div class="setting-item">
+                <label>Порог чувствительности: <span id="threshold-val">0%</span></label>
+                <input type="range" id="setting-threshold" class="settings-range" min="0" max="100" value="0">
+            </div>
+
+            <button class="btn-close-settings" id="close-settings-btn">Применить</button>
+        </div>
+    </div>
+    <script>
+
+    // СЛОВАРИ ПЕРЕВОДОВ И ФРАЗ
+    const translations = {
+        'neutral': 'Спокойствие', 'happy': 'Радость', 'surprise': 'Удивление',
+        'sad': 'Грусть', 'angry': 'Злость', 'disgust': 'Отвращение',
+        'fear': 'Страх'
+    };
+
+    const phrases = {
+        'neutral': [
+            'Только кофе. И никаких дедлайнов.',
+            'Смотрю в консоль, консоль смотрит в меня.',
+            'Режим энергосбережения активирован.',
+            'Читаю документацию (наконец-то).',
+            'Просто жду завершения пайплайна.',
+            'Компилируется...'
+        ],
+        'happy': [
+            'Код скомпилировался с первого раза!',
+            'Тесты зеленые, можно в прод!',
+            'Нашел ответ на StackOverflow с 2011 года.',
+            'Дедлайн перенесли!',
+            'Оно работает! И я даже знаю почему!',
+            'ПОСТУПИЛ НА ФИЗТЕХ!!'
+        ],
+        'surprise': [
+            'Это что, автомат?!',
+            'Оно заработало без костылей?!',
+            'Откуда здесь взялся этот коммит?',
+            'Как это "уже пятница"?',
+            'Баг превратился в фичу.',
+            'Память не утекает?!'
+        ],
+        'sad': [
+            'Ошибка сегментации...',
+            'Бэкапов нет. Но вы держитесь.',
+            'Забыл сохранить проект.',
+            'Снова упало на проде.',
+            'Пятничный деплой провалился.',
+            'Git merge conflict 😭'
+        ],
+        'angry': [
+            'Опять этот баг!!!!.',
+            'На моем компе всё работало!',
+            'Снова отвалился интернет!',
+            'Где эта пропущенная точка с запятой?!',
+            'Docker не поднимается!',
+            'Да почему оно не пушится?!'
+        ],
+        'disgust': [
+            'Грязный хак в коде.',
+            'Светлая тема в IDE.',
+            'Проект вообще без документации.',
+            'Костыль на костыле.',
+            'Глобальные переменные везде...',
+            'Код без отступов'
+        ],
+        'fear': [
+            'Завтра дедлайн по лабе 🛡️',
+            'rm -rf / в корне...',
+            'Прод упал, а я один.',
+            'Завтра защита диплома.',
+            'Кажется, я дропнул базу.',
+            'Синий экран смерти...'
+        ]
+    };
+
+    // БАЗОВЫЕ ПЕРЕМЕННЫЕ
+    const video = document.getElementById('video');
+    const startBtn = document.getElementById('startBtn');
+    const facesContainer = document.getElementById('faces-container');
+    const statusEl = document.getElementById('status');
+    const emotionList = document.getElementById('emotion-list');
+
+    const backendPort = "8000";
+    const host = window.location.hostname || "127.0.0.1";
+    let socket;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+    const ctx = canvas.getContext('2d');
+
+    let isStreaming = false;
+    let isWaitingForServer = false;
+
+    // НАВИГАЦИЯ И МЕНЮ
+    function openApp() {
+        // Если мы в режиме обучения (Шаг 3), переходим к Шагу 4
+        if (typeof tutorialStep !== 'undefined' && tutorialStep === 3) {
+            tutorialStep = 4;
+            startTutorialStep4();
+        }
+
+        document.getElementById('menu-screen').style.display = 'none';
+        document.getElementById('app-screen').style.display = 'block';
+    }
+
+    function closeApp() {
+        if (isStreaming) stopCamera();
+        document.getElementById('app-screen').style.display = 'none';
+        document.getElementById('menu-screen').style.display = 'flex';
+    }
+
+    function exitApp() {
+        fetch(`http://${host}:${backendPort}/api/v1/shutdown`, {
+            method: 'POST'
+        }).catch(e => {
+            window.close();
+        });
+    }
+
+    // ГЕНЕРАЦИЯ ПОЛОСОК СТАТИСТИКИ
+    Object.keys(translations).forEach(key => {
+        emotionList.innerHTML += `
+            <div class="emotion-row">
+                <div class="row-info">
+                    <span>${translations[key]}</span>
+                    <span id="val-${key}">0%</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="bar-${key}"></div></div>
+            </div>
+        `;
+    });
+
+    //ПОДКЛЮЧЕНИЕ К СЕРВЕРУ И ОБРАБОТКА ЛИЦ
+    function connectWebSocket() {
+        socket = new WebSocket(`ws://${host}:${backendPort}/ws`);
+
+        socket.onopen = () => {
+            statusEl.innerText = "● ONLINE";
+            statusEl.style.color = "var(--success)";
+        };
+
+        socket.onclose = () => {
+            statusEl.innerText = "● ПЕРЕПОДКЛЮЧЕНИЕ...";
+            statusEl.style.color = "orange";
+            setTimeout(connectWebSocket, 2000);
+        };
+
+        socket.onmessage = (event) => {
+            isWaitingForServer = false;
+            const data = JSON.parse(event.data);
+
+            if (!data.success) return;
+
+            if (!data.faces || data.faces.length === 0) {
+                facesContainer.innerHTML = '';
+                return;
+            }
+
+            const isCalibrating = data.faces[0].calibrating;
+            if (isCalibrating) {
+                statusEl.innerText = "● КАЛИБРОВКА...";
+                statusEl.style.color = "orange";
+            } else {
+                statusEl.innerText = "● ONLINE";
+                statusEl.style.color = "var(--success)";
+            }
+
+            const winW = window.innerWidth;
+            const winH = window.innerHeight;
+            const scale = Math.max(winW / canvas.width, winH / canvas.height);
+            const offsetX = (winW - (canvas.width * scale)) / 2;
+            const offsetY = (winH - (canvas.height * scale)) / 2;
+
+            const activeFaceIds = new Set();
+
+            data.faces.forEach((face, index) => {
+                activeFaceIds.add(face.id);
+
+                let faceEl = document.getElementById(`face-${face.id}`);
+                if (!faceEl) {
+                    faceEl = document.createElement('div');
+                    faceEl.id = `face-${face.id}`;
+                    faceEl.className = 'face-box';
+
+                    faceEl.innerHTML = `
+                        <img id="icon-${face.id}" class="face-icon" src="">
+                        <div class="face-hud">
+                            <span class="hud-id">СУБЪЕКТ ${face.id.substring(0,4).toUpperCase()}</span>
+                            <span class="hud-emotion">ПОИСК...</span>
+                            <span class="hud-phrase"></span>
+                        </div>
+                    `;
+                    facesContainer.appendChild(faceEl);
+                }
+
+                const [bx, by, bw, bh] = face.box;
+                faceEl.style.left = (offsetX + bx * scale) + 'px';
+                faceEl.style.top = (offsetY + by * scale) + 'px';
+                faceEl.style.width = (bw * scale) + 'px';
+                faceEl.style.height = (bh * scale) + 'px';
+
+                if (isCalibrating) {
+                    faceEl.querySelector('.hud-emotion').innerText = "КАЛИБРОВКА";
+                    faceEl.querySelector('.hud-phrase').innerText = "Пожалуйста, не двигайтесь...";
+                } else {
+                    // Проверяем, преодолела ли эмоция установленный порог настроек
+                    const emotionPercent = face.all_emotions[face.emotion] || 0;
+
+                    if (emotionPercent >= currentThreshold) {
+                        faceEl.querySelector('.hud-emotion').innerText = translations[face.emotion].toUpperCase();
+
+                        //  Проверяем, сменилась ли эмоция, чтобы не было мерцания текста
+                        if (faceEl.dataset.currentEmotion !== face.emotion) {
+                            faceEl.dataset.currentEmotion = face.emotion; // Запоминаем новую эмоцию
+                            const emotionPhrases = phrases[face.emotion];
+                            // Выбираем случайную фразу из списка
+                            const randomPhrase = emotionPhrases[Math.floor(Math.random() * emotionPhrases.length)];
+                            faceEl.querySelector('.hud-phrase').innerText = randomPhrase;
+                        }
+
+                        const iconEl = document.getElementById(`icon-${face.id}`);
+                        iconEl.src = `http://${host}:${backendPort}/icons/${face.emotion}.png`;
+                        iconEl.style.display = 'block'; // Показываем иконку
+                    } else {
+                        faceEl.querySelector('.hud-emotion').innerText = "АНАЛИЗ...";
+                        faceEl.querySelector('.hud-phrase').innerText = "Ожидание яркой эмоции...";
+
+                        const iconEl = document.getElementById(`icon-${face.id}`);
+                        iconEl.style.display = 'none'; // Прячем иконку, пока нет уверенности
+                    }
+                }
+
+                if (index === 0 && !isCalibrating) {
+                    for (const [key, value] of Object.entries(face.all_emotions)) {
+                        const barEl = document.getElementById(`bar-${key}`);
+                        if(barEl) {
+                            barEl.style.width = value + '%';
+                            document.getElementById(`val-${key}`).innerText = value + '%';
+                        }
+                    }
+                }
+            });
+
+            Array.from(facesContainer.children).forEach(child => {
+                const id = child.id.replace('face-', '');
+                if (!activeFaceIds.has(id)) child.remove();
+            });
+        };
+    }
+
+    connectWebSocket();
+
+    // ОТПРАВКА КАДРОВ
+    function sendFrameLoop() {
+        if (!isStreaming) return;
+
+        if (!isWaitingForServer && socket.readyState === WebSocket.OPEN) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+
+            // Условие синхронизации координат с настройками
+            if (isMirrored) {
+                ctx.scale(-1, 1);
+                ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+            } else {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            }
+
+            ctx.restore();
+
+            canvas.toBlob(blob => {
+                isWaitingForServer = true;
+                socket.send(blob);
+            }, 'image/jpeg', 0.5);
+        }
+
+        requestAnimationFrame(sendFrameLoop);
+    }
+
+    const guideBtn = document.getElementById('guide-btn'); // кнопка "Руководство"
+    const tutorialOverlay = document.getElementById('tutorial-overlay');
+    const tutorialActionBtn = document.getElementById('tutorial-action-btn');
+
+    // Собираем все кнопки главного экрана (чтобы их заблокировать)
+    const menuButtons = document.querySelectorAll('#menu-screen button');
+
+    // ЗАПУСК ОБУЧЕНИЯ
+    if (guideBtn) {
+        guideBtn.addEventListener('click', () => {
+            // Показываем затемненный экран
+            tutorialOverlay.style.display = 'flex';
+
+            // Блокируем все кнопки меню, КРОМЕ самой кнопки "Руководство" (чтобы она не посерела)
+            menuButtons.forEach(btn => {
+                if (btn.id !== 'guide-btn') {
+                    btn.classList.add('menu-btn-disabled');
+                }
+            });
+        });
+    }
+
+    let tutorialStep = 1;
+
+    const tutorialText = document.getElementById('tutorial-text');
+    const tutorialArrow = document.getElementById('tutorial-arrow');
+    const tutorialSkip = document.getElementById('tutorial-skip');
+    const creatorsButton = document.getElementById('creators-btn');
+    const closeCreatorsBtn = document.getElementById('close-creators-btn');
+
+
+
+    function finishTutorial() {
+        tutorialOverlay.style.display = 'none';
+        tutorialArrow.style.display = 'none';
+        tutorialActionBtn.style.display = 'block';
+
+        const tutorialContent = document.querySelector('.tutorial-content');
+        tutorialContent.style.display = 'flex';
+        tutorialContent.style.width = '';
+        tutorialContent.style.height = '';
+        tutorialContent.classList.remove('mascot-pos-left', 'mascot-pos-right');
+
+        const dialogBox = document.querySelector('.tutorial-dialog-box');
+        dialogBox.style.position = 'relative';
+        dialogBox.style.top = 'auto';
+        dialogBox.style.left = 'auto';
+        dialogBox.style.bottom = 'auto';
+        dialogBox.style.transform = 'none';
+        dialogBox.style.width = 'auto';
+        dialogBox.style.maxWidth = 'none';
+
+        const tutorialMascot = document.getElementById('tutorial-mascot');
+        tutorialMascot.style.position = 'static';
+        tutorialMascot.style.bottom = 'auto';
+        tutorialMascot.style.left = 'auto';
+        tutorialMascot.style.right = 'auto';
+        tutorialMascot.style.width = '350px';
+        tutorialMascot.style.transform = 'scaleX(1)';
+
+        tutorialText.style.fontSize = '24px';
+        tutorialText.innerHTML = "Привет! Я Обл — твой пушистый проводник в мир эмоций! Сейчас я покажу тебе, как работает наш Эмоцинатор.<br><br>Готов начать?";
+        tutorialActionBtn.innerText = "Поехали!";
+
+        document.getElementById('menu-screen').style.zIndex = '100';
+
+        // СБРОС ПОДСВЕТОК
+        creatorsButton.classList.remove('tutorial-highlight');
+
+        const scanBtn = document.getElementById('scan-btn');
+        if (scanBtn) scanBtn.classList.remove('tutorial-highlight');
+
+        const dashboardCard = document.querySelector('.dashboard-card');
+        if (dashboardCard) {
+            dashboardCard.classList.remove('tutorial-highlight');
+            dashboardCard.style.zIndex = '10';
+        }
+
+        const settingsBtnDashboard = document.getElementById('settings-btn');
+        if (settingsBtnDashboard) settingsBtnDashboard.classList.remove('tutorial-highlight');
+
+        // СБРОС БЛОКИРОВОК
+        const startBtnDashboard = document.getElementById('startBtn');
+        const backBtnDashboard = document.querySelector('.btn-back');
+        if (startBtnDashboard) {
+            startBtnDashboard.classList.remove('menu-btn-disabled');
+            startBtnDashboard.classList.remove('tutorial-highlight'); // Снимаем белую подсветку
+        }
+        if (backBtnDashboard) backBtnDashboard.classList.remove('menu-btn-disabled');
+        if (settingsBtnDashboard) settingsBtnDashboard.classList.remove('menu-btn-disabled');
+
+        const menuButtons = document.querySelectorAll('#menu-screen button');
+        menuButtons.forEach(btn => btn.classList.remove('menu-btn-disabled'));
+
+        tutorialArrow.src = 'static/images/arrow_left.png';
+        tutorialArrow.style.animation = 'pointRight 0.6s ease-in-out infinite alternate';
+
+        tutorialStep = 1;
+    }
+
+    if(tutorialSkip) tutorialSkip.addEventListener('click', finishTutorial);
+
+    // ЛОГИКА ШАГОВ ОБУЧЕНИЯ
+    tutorialActionBtn.addEventListener('click', () => {
+        if (tutorialStep === 1) {
+            tutorialStep = 2;
+
+            tutorialText.innerHTML = "Здесь ты можешь познакомиться с моими создателями! Жми на эту кнопку, чтобы увидеть нашу великолепную команду.";
+            tutorialText.style.fontSize = '30px';
+            tutorialActionBtn.style.display = 'none';
+
+            const tutorialContent = document.querySelector('.tutorial-content');
+            tutorialContent.style.display = 'block';
+            tutorialContent.style.width = '100%';
+            tutorialContent.style.height = '100%';
+
+            const dialogBox = document.querySelector('.tutorial-dialog-box');
+            dialogBox.style.position = 'absolute';
+            dialogBox.style.top = '60px';
+            dialogBox.style.left = '50%';
+            dialogBox.style.transform = 'translateX(-50%)';
+            dialogBox.style.width = '800px';
+
+            const tutorialMascot = document.getElementById('tutorial-mascot');
+            tutorialMascot.style.position = 'absolute';
+            tutorialMascot.style.bottom = '100px';
+            tutorialMascot.style.right = '10px';
+            tutorialMascot.style.width = '350px';
+            tutorialMascot.style.transform = 'scaleX(-1)';
+
+            document.getElementById('menu-screen').style.zIndex = 'auto';
+
+            creatorsButton.classList.remove('menu-btn-disabled');
+            creatorsButton.classList.add('tutorial-highlight');
+
+            tutorialArrow.style.display = 'block';
+            const btnRect = creatorsButton.getBoundingClientRect();
+            tutorialArrow.style.left = (btnRect.left - 130) + 'px';
+            tutorialArrow.style.top = (btnRect.top + (btnRect.height / 2) - 45) + 'px';
+
+        } else if (tutorialStep === 4) {
+            tutorialStep = 5;
+
+            const tutorialContent = document.querySelector('.tutorial-content');
+            tutorialContent.style.display = 'block';
+            tutorialContent.style.width = '100%';
+            tutorialContent.style.height = '100%';
+
+            const tutorialMascot = document.getElementById('tutorial-mascot');
+            tutorialMascot.style.position = 'absolute';
+            tutorialMascot.style.bottom = '100px';
+            tutorialMascot.style.left = '30px';
+            tutorialMascot.style.width = '350px';
+            tutorialMascot.style.transform = 'scaleX(1)';
+
+            const dialogBox = document.querySelector('.tutorial-dialog-box');
+            dialogBox.style.position = 'absolute';
+            dialogBox.style.bottom = '100px';
+            dialogBox.style.left = '400px';
+            dialogBox.style.transform = 'none';
+            dialogBox.style.width = '450px';
+            dialogBox.style.maxWidth = '90%';
+
+            tutorialText.innerHTML = "В этом блоке отображается детальная статистика. Нейросеть вычисляет процентную вероятность каждой базовой эмоции.";
+            tutorialText.style.fontSize = '24px';
+            tutorialActionBtn.innerText = "Далее";
+
+            const dashboardCard = document.querySelector('.dashboard-card');
+            if (dashboardCard) {
+                dashboardCard.style.zIndex = '100000';
+                dashboardCard.classList.add('tutorial-highlight');
+
+                tutorialArrow.src = 'static/images/arrow_down.png';
+                tutorialArrow.style.display = 'block';
+                tutorialArrow.style.animation = 'pointDown 0.6s ease-in-out infinite alternate';
+
+                const panelRect = dashboardCard.getBoundingClientRect();
+                tutorialArrow.style.left = (panelRect.left + (panelRect.width / 2) - 45) + 'px';
+                tutorialArrow.style.top = (panelRect.top - 170) + 'px';
+            }
+
+            const startBtnDashboard = document.getElementById('startBtn');
+            const backBtnDashboard = document.querySelector('.btn-back');
+            const settingsBtnDashboard = document.getElementById('settings-btn');
+
+            if (startBtnDashboard) startBtnDashboard.classList.add('menu-btn-disabled');
+            if (backBtnDashboard) backBtnDashboard.classList.add('menu-btn-disabled');
+            if (settingsBtnDashboard) settingsBtnDashboard.classList.add('menu-btn-disabled');
+
+        } else if (tutorialStep === 5) {
+            tutorialStep = 6;
+
+            tutorialText.innerHTML = "Для изменения параметров программы используй настройки. Кликни по шестеренке, чтобы открыть их и изменить по своему усмотрению.";
+            tutorialActionBtn.style.display = 'none';
+
+            const dashboardCard = document.querySelector('.dashboard-card');
+            if (dashboardCard) {
+                dashboardCard.classList.remove('tutorial-highlight');
+            }
+
+            const settingsBtnDashboard = document.getElementById('settings-btn');
+            if (settingsBtnDashboard) {
+                settingsBtnDashboard.classList.remove('menu-btn-disabled');
+                settingsBtnDashboard.classList.add('tutorial-highlight');
+
+                const gearRect = settingsBtnDashboard.getBoundingClientRect();
+                tutorialArrow.style.left = (gearRect.left + (gearRect.width / 2) - 45) + 'px';
+                tutorialArrow.style.top = (gearRect.top - 170) + 'px';
+            }
+        } else if (tutorialStep === 7) {
+            tutorialStep = 8;
+
+            tutorialText.innerHTML = "Во время работы эта же кнопка превратится в «Паузу». Нажми её, если захочешь остановить сканирование. На этом всё, удачи и море веселья!";
+            tutorialActionBtn.innerText = "Завершить";
+
+        } else if (tutorialStep === 8) {
+            // ПОЛНОЕ ЗАВЕРШЕНИЕ ОБУЧЕНИЯ
+            finishTutorial();
+        }
+    });
+
+    // КЛИК ПО КНОПКЕ "СОЗДАТЕЛИ"
+
+    if (creatorsButton) {
+        creatorsButton.addEventListener('click', () => {
+            // Открываем окно создателей
+            const creatorsOverlay = document.getElementById('creators-overlay');
+            if(creatorsOverlay) creatorsOverlay.style.display = 'flex';
+
+            // Если мы в режиме обучения временно прячем всё обучение
+            if (typeof tutorialStep !== 'undefined' && tutorialStep === 2) {
+                const tutorialOverlay = document.getElementById('tutorial-overlay');
+                const tutorialArrow = document.getElementById('tutorial-arrow');
+                if(tutorialOverlay) tutorialOverlay.style.display = 'none';
+                if(tutorialArrow) tutorialArrow.style.display = 'none';
+                creatorsButton.classList.remove('tutorial-highlight');
+            }
+
+            // Блокируем остальные кнопки меню
+            const menuButtons = document.querySelectorAll('#menu-screen button');
+            menuButtons.forEach(btn => {
+                if (btn.id !== 'creators-btn') {
+                    btn.classList.add('menu-btn-disabled');
+                }
+            });
+        });
+    }
+
+    if (closeCreatorsBtn) {
+        closeCreatorsBtn.addEventListener('click', () => {
+            // Закрываем окно создателей
+            const creatorsOverlay = document.getElementById('creators-overlay');
+            if(creatorsOverlay) creatorsOverlay.style.display = 'none';
+
+            // Если мы возвращаемся из обучения, запускаем ШАГ 3
+            if (typeof tutorialStep !== 'undefined' && tutorialStep === 2) {
+                tutorialStep = 3;
+
+                //  Возвращаем слой обучения на экран
+                const tutorialOverlay = document.getElementById('tutorial-overlay');
+                if(tutorialOverlay) tutorialOverlay.style.display = 'flex';
+
+                // Обновляем текст
+                const tutorialText = document.getElementById('tutorial-text');
+                tutorialText.innerHTML = "Отлично! Теперь давай протестируем главную функцию. Нажми «Сканирование лица», чтобы запустить Эмоцинатор!";
+
+                // Немного поднимаем диалоговое окно, чтобы не перекрыть верхнюю кнопку
+                const dialogBox = document.querySelector('.tutorial-dialog-box');
+                dialogBox.style.top = '20px';
+
+                const tutorialMascot = document.getElementById('tutorial-mascot');
+                tutorialMascot.style.position = 'absolute';
+                tutorialMascot.style.bottom = '100px';
+                tutorialMascot.style.right = '10px';
+                tutorialMascot.style.width = '350px';
+                tutorialMascot.style.transform = 'scaleX(-1)';
+
+                // Снимаем фокус с Создателей и переносим на Сканирование
+                creatorsButton.classList.remove('tutorial-highlight');
+                creatorsButton.classList.add('menu-btn-disabled');
+
+                const scanBtn = document.getElementById('scan-btn');
+                if (scanBtn) {
+                    scanBtn.classList.remove('menu-btn-disabled');
+                    scanBtn.classList.add('tutorial-highlight');
+
+                    // Возвращаем и перемещаем стрелку к кнопке Сканирования
+                    const tutorialArrow = document.getElementById('tutorial-arrow');
+                    tutorialArrow.style.display = 'block';
+                    const btnRect = scanBtn.getBoundingClientRect();
+                    tutorialArrow.style.left = (btnRect.left - 130) + 'px';
+                    tutorialArrow.style.top = (btnRect.top + (btnRect.height / 2) - 45) + 'px';
+                }
+            } else {
+                // Обычное закрытие окна вне обучения (снимаем блокировку со всего меню)
+                const menuButtons = document.querySelectorAll('#menu-screen button');
+                menuButtons.forEach(btn => {
+                    btn.classList.remove('menu-btn-disabled');
+                });
+            }
+        });
+    }
+
+    // ОСТАНОВКА КАМЕРЫ
+    function stopCamera() {
+        isStreaming = false;
+        const tracks = video.srcObject?.getTracks();
+        if (tracks) tracks.forEach(t => t.stop());
+        video.srcObject = null;
+        video.style.opacity = '0';
+
+        startBtn.innerText = "Старт системы";
+        startBtn.style.background = "var(--primary)";
+        facesContainer.innerHTML = '';
+
+        Object.keys(translations).forEach(key => {
+            const barEl = document.getElementById(`bar-${key}`);
+            const valEl = document.getElementById(`val-${key}`);
+            if(barEl) barEl.style.width = '0%';
+            if(valEl) valEl.innerText = '0%';
+        });
+    }
+
+    const mascot = document.getElementById('mascot');
+    const menuScreen = document.getElementById('menu-screen');
+    let isFlying = false;
+
+    mascot.addEventListener('mouseenter', (e) => {
+        if (isFlying) return;
+        isFlying = true;
+
+        const speechBubble = document.getElementById('mascot-speech');
+        if(speechBubble) speechBubble.style.opacity = '0';
+
+        // ОПРЕДЕЛЯЕМ НАПРАВЛЕНИЕ НАВЕДЕНИЯ МЫШКИ
+        const rect = mascot.getBoundingClientRect();
+        const mascotCenterX = rect.left + rect.width / 2;
+        const mascotCenterY = rect.top + rect.height / 2;
+
+        const deltaX = e.clientX - mascotCenterX;
+        const deltaY = e.clientY - mascotCenterY;
+
+        let flightDirectionX = 0;
+        let flightDirectionY = 0;
+
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+            flightDirectionX = deltaX > 0 ? -1 : 1;
+        } else {
+            flightDirectionY = deltaY > 0 ? -1 : 1;
+        }
+
+        const isOnRight = window.getComputedStyle(mascot).right.replace('px','') < window.innerWidth / 2;
+        const isOnBottom = window.getComputedStyle(mascot).bottom.replace('px','') < window.innerHeight / 2;
+
+        if (flightDirectionX === 0) flightDirectionX = isOnRight ? 1 : -1;
+        if (flightDirectionY === 0) flightDirectionY = isOnBottom ? 1 : -1;
+
+
+        mascot.style.transition = 'all 1.0s ease-in';
+        const targetX = isOnRight ? (flightDirectionX * 120 + 'vw') : (flightDirectionX * -120 + 'vw');
+        const targetY = isOnBottom ? (flightDirectionY * -120 + 'vh') : (flightDirectionY * 120 + 'vh');
+
+        mascot.style.transform = `translate(${targetX}, ${targetY}) scale(0.8)`;
+
+        let spawnInterval = setInterval(spawnAirParticle, 30);
+
+        // ВЫБОР СЛУЧАЙНОГО НОВОГО УГЛА
+        setTimeout(() => {
+            clearInterval(spawnInterval);
+
+            mascot.style.transition = 'none';
+            mascot.style.transform = 'translate(0,0) scale(1)';
+
+            mascot.style.left = 'auto';
+            mascot.style.right = 'auto';
+            mascot.style.top = 'auto';
+            mascot.style.bottom = 'auto';
+
+            const currentCorner = (isOnRight ? 'R' : 'L') + (isOnBottom ? 'B' : 'T');
+            const allCorners = ['LT', 'RT', 'LB', 'RB'];
+            const availableCorners = allCorners.filter(corner => corner !== currentCorner);
+            const nextCorner = availableCorners[Math.floor(Math.random() * availableCorners.length)];
+
+            if (nextCorner.includes('L')) {
+                mascot.style.left = '-40vw';
+            } else {
+                mascot.style.right = '-40vw';
+            }
+
+            if (nextCorner.includes('T')) {
+                mascot.style.top = '10vh';
+            } else {
+                mascot.style.bottom = '10vh';
+            }
+
+            // Меняем текст на случайный, пока Обл спрятан за экраном
+            if(speechBubble) {
+                const phrases = [
+                    "Привет! Чем могу помочь?",
+                    "Я тут!",
+                    "Давай сканировать эмоции?",
+                    "Я слежу за тобой 👀",
+                    "Нажми кнопку Старт!"
+                ];
+                speechBubble.innerText = phrases[Math.floor(Math.random() * phrases.length)];
+            }
+
+            // МЕДЛЕННЫЙ ПРИЛЕТ В НОВЫЙ УГОЛ
+            setTimeout(() => {
+                mascot.style.transition = 'all 1.5s cubic-bezier(0.22, 1, 0.36, 1)';
+
+                if (nextCorner.includes('L')) {
+                    mascot.style.left = '5vw';
+                } else {
+                    mascot.style.right = '5vw';
+                }
+
+                if (nextCorner.includes('T')) {
+                    mascot.style.top = '10vh';
+                } else {
+                    mascot.style.bottom = '10vh';
+                }
+
+                // Ждем остановки Обла
+                setTimeout(() => {
+                    isFlying = false;
+
+                    // Плавно проявляем новый текст
+                    if(speechBubble) speechBubble.style.opacity = '1';
+
+                }, 1500);
+            }, 50);
+
+        }, 1000);
+    });
+
+    // Функция создания одной частички воздуха
+    function spawnAirParticle() {
+        if (!isFlying) return;
+
+        const particle = document.createElement('img');
+        particle.src = 'static/images/particles.png'; //
+        particle.className = 'air-particle';
+
+        // Высчитываем координаты облачка (относительно menuScreen)
+        const rect = mascot.getBoundingClientRect();
+        const menuRect = menuScreen.getBoundingClientRect();
+
+        const relativeLeft = rect.left - menuRect.left;
+        const relativeTop = rect.top - menuRect.top;
+
+        // Спавним частичку по центру облачка
+        particle.style.left = (relativeLeft + rect.width / 2 - 50) + 'px';
+        particle.style.top = (relativeTop + rect.height / 2 - 50) + 'px';
+
+        // Спавним частицу ВНУТРИ контейнера menu-screen
+        menuScreen.appendChild(particle);
+
+        // Заставляем ее раствориться и отлететь назад/вбок
+        requestAnimationFrame(() => {
+            particle.style.opacity = '0';
+            particle.style.transform = 'scale(0.3) translate(-80px, 80px)';
+        });
+
+        // Удаляем из DOM, когда частичка стала невидимой
+        setTimeout(() => {
+            particle.remove();
+        }, 1000);
+    }
+
+    // ЗАПУСК КАМЕРЫ (КНОПКА СТАРТ) И ВЫБОР ИСТОЧНИКА
+    const cameraSelect = document.getElementById('camera-select');
+    let hasSeenCameraModal = false;
+
+    function startStream(stream) {
+        video.srcObject = stream;
+        video.style.opacity = '1';
+        video.play();
+        video.onloadedmetadata = () => {
+            isStreaming = true;
+            isWaitingForServer = false;
+            startBtn.innerText = "Пауза";
+            startBtn.style.background = "var(--danger)";
+            if(cameraSelect) cameraSelect.style.display = 'none';
+            sendFrameLoop();
+        };
+    }
+
+    async function requestCameraAccess() {
+        try {
+            const initialStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+            if (videoDevices.length > 1) {
+                cameraSelect.innerHTML = '';
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Камера ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+
+                cameraSelect.style.display = 'block';
+                startBtn.innerText = "Подтвердить";
+
+                initialStream.getTracks().forEach(track => track.stop());
+            } else {
+                startStream(initialStream);
+            }
+        } catch (err) {
+            console.error("Ошибка доступа к камере:", err);
+            alert("Вы запретили доступ к камере или устройство не найдено.");
+        }
+    }
+
+    startBtn.addEventListener('click', async () => {
+        if (typeof tutorialStep !== 'undefined' && (tutorialStep === 7 || tutorialStep === 8)) return;
+        if (!isStreaming) {
+
+            if (video.srcObject) {
+                video.play(); // снимаем видео с паузы
+                isStreaming = true; // разрешаем отправку кадров
+                startBtn.innerText = "Пауза";
+                startBtn.style.background = "var(--danger)";
+                sendFrameLoop(); // перезапускаем цикл отправки
+                return;
+            }
+
+            if (cameraSelect && cameraSelect.style.display === 'block') {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { deviceId: { exact: cameraSelect.value }, height: { ideal: currentResolution } }
+                    });
+                    startStream(stream);
+                } catch (err) { alert("Ошибка запуска выбранной камеры."); }
+                return;
+            }
+
+            // Если нажимаем старт впервые
+            if (!hasSeenCameraModal) {
+                let modal = document.getElementById('camera-modal');
+
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'camera-modal';
+                    modal.style.cssText = "display: flex; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; font-family: 'Pangolin', cursive;";
+                    modal.innerHTML = `
+                        <div style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); padding: 40px; border-radius: 20px; border: 2px solid var(--primary); text-align: center; max-width: 400px; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+                            <h2 style="margin: 0 0 15px 0; color: var(--primary); font-family: 'Rubik Bubbles', cursive; font-size: 28px;">Доступ к камере</h2>
+                            <p style="font-size: 18px; color: var(--text-main); margin-bottom: 25px; line-height: 1.4;">Эмоцинатору требуется доступ к камере для сканирования лица. Нажмите «Понятно», а затем <b>«Разрешить»</b> в появившемся системном окне.</p>
+                            <button id="modal-understand-btn" style="background: var(--primary); color: white; border: none; padding: 12px 30px; border-radius: 10px; font-size: 18px; font-weight: 700; cursor: pointer; font-family: 'Pangolin', cursive; box-shadow: 0 4px 10px var(--primary-glow);">Понятно</button>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+
+                    document.getElementById('modal-understand-btn').addEventListener('click', () => {
+                        modal.style.display = 'none';
+                        hasSeenCameraModal = true;
+                        requestCameraAccess();
+                    });
+                } else {
+                    modal.style.display = 'flex';
+                }
+            } else {
+                requestCameraAccess();
+            }
+
+        } else {
+            // ПАУЗА
+            video.pause(); // замораживаем картинку
+            isStreaming = false; // останавливаем функцию sendFrameLoop
+
+            startBtn.innerText = "Старт";
+            startBtn.style.background = "var(--primary)";
+        }
+    });
+
+    // НАСТРОЙКИ ПРОГРАММЫ
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsOverlay = document.getElementById('settings-overlay');
+    const closeSettingsBtn = document.getElementById('close-settings-btn');
+
+    const settingMirror = document.getElementById('setting-mirror');
+    const settingResolution = document.getElementById('setting-resolution');
+    const settingThreshold = document.getElementById('setting-threshold');
+    const thresholdVal = document.getElementById('threshold-val');
+
+    let currentThreshold = 0;
+    let currentResolution = 1080;
+    let isMirrored = true;
+
+    settingThreshold.addEventListener('input', (e) => {
+        thresholdVal.innerText = e.target.value + '%';
+    });
+
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+            settingsOverlay.style.display = 'flex';
+        });
+    }
+
+    if (closeSettingsBtn) {
+        closeSettingsBtn.addEventListener('click', () => {
+            settingsOverlay.style.display = 'none';
+
+            if (typeof tutorialStep !== 'undefined' && tutorialStep === 6) {
+                tutorialStep = 7;
+
+                const settingsBtnDashboard = document.getElementById('settings-btn');
+                if (settingsBtnDashboard) settingsBtnDashboard.classList.remove('tutorial-highlight');
+
+                const startBtnDashboard = document.getElementById('startBtn');
+                if (startBtnDashboard) {
+                    startBtnDashboard.classList.remove('menu-btn-disabled');
+                    startBtnDashboard.classList.add('tutorial-highlight');
+
+                    const tutorialArrow = document.getElementById('tutorial-arrow');
+                    const startRect = startBtnDashboard.getBoundingClientRect();
+                    tutorialArrow.style.left = (startRect.left + (startRect.width / 2) - 45) + 'px';
+                    tutorialArrow.style.top = (startRect.top - 170) + 'px';
+                }
+
+                const tutorialText = document.getElementById('tutorial-text');
+                tutorialText.innerHTML = "Отлично! Теперь кнопка Старт. После нажатия на неё программа  попросит доступ к камере — разреши его, чтобы начать веселье!";
+
+                const tutorialActionBtn = document.getElementById('tutorial-action-btn');
+                tutorialActionBtn.style.display = 'block';
+                tutorialActionBtn.innerText = "Далее";
+            }
+            isMirrored = settingMirror.checked;
+            video.style.transform = settingMirror.checked ? 'scaleX(-1)' : 'scaleX(1)';
+
+            currentResolution = parseInt(settingResolution.value);
+
+            currentThreshold = parseInt(settingThreshold.value);
+        });
+    }
+
+    function startTutorialStep4() {
+        const tutorialOverlay = document.getElementById('tutorial-overlay');
+        const tutorialArrow = document.getElementById('tutorial-arrow');
+        const scanBtn = document.getElementById('scan-btn');
+
+        tutorialOverlay.style.display = 'flex';
+        tutorialArrow.style.display = 'none';
+        if (scanBtn) scanBtn.classList.remove('tutorial-highlight');
+
+        const tutorialContent = document.querySelector('.tutorial-content');
+        tutorialContent.style.display = 'flex';
+        tutorialContent.style.width = '';
+        tutorialContent.style.height = '';
+
+        const dialogBox = document.querySelector('.tutorial-dialog-box');
+        dialogBox.style.position = 'relative';
+        dialogBox.style.top = 'auto';
+        dialogBox.style.left = 'auto';
+        dialogBox.style.transform = 'none';
+        dialogBox.style.width = 'auto';
+        dialogBox.style.maxWidth = 'none';
+
+        const tutorialMascot = document.getElementById('tutorial-mascot');
+        tutorialMascot.style.position = 'static';
+        tutorialMascot.style.bottom = 'auto';
+        tutorialMascot.style.right = 'auto';
+        tutorialMascot.style.width = '350px';
+        tutorialMascot.style.transform = 'scaleX(1)';
+
+        const tutorialText = document.getElementById('tutorial-text');
+        const tutorialActionBtn = document.getElementById('tutorial-action-btn');
+
+        tutorialText.style.fontSize = '24px';
+        tutorialText.innerHTML = "Вот наш главный экран! Здесь происходит самое веселье! Я буду следить за твоим лицом и ловить каждую эмоцию.";
+
+        tutorialActionBtn.style.display = 'block';
+        tutorialActionBtn.innerText = "Далее";
+    }
+
+    const dashboardToggleBtn = document.getElementById('dashboard-toggle-btn');
+    const dashboardCardEl = document.querySelector('.dashboard-card');
+
+    if (dashboardToggleBtn && dashboardCardEl) {
+        dashboardToggleBtn.addEventListener('click', () => {
+            dashboardCardEl.classList.toggle('collapsed');
+
+            if (dashboardCardEl.classList.contains('collapsed')) {
+                dashboardToggleBtn.innerHTML = '&gt;';
+            } else {
+                dashboardToggleBtn.innerHTML = '&lt;'; 
+            }
+        });
+    }
+</script>
+</body>
+</html>
