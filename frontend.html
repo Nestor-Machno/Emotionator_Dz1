@@ -950,7 +950,7 @@
     }
 
     function exitApp() {
-        fetch(`http://${host}:${backendPort}/api/v1/shutdown`, {
+    fetch(`/api/v1/shutdown`, {
             method: 'POST'
         }).catch(e => {
             window.close();
@@ -972,7 +972,8 @@
 
     //ПОДКЛЮЧЕНИЕ К СЕРВЕРУ И ОБРАБОТКА ЛИЦ
     function connectWebSocket() {
-        socket = new WebSocket(`ws://${host}:${backendPort}/ws`);
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        socket = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
 
         socket.onopen = () => {
             statusEl.innerText = "● ONLINE";
@@ -1059,7 +1060,7 @@
                         }
 
                         const iconEl = document.getElementById(`icon-${face.id}`);
-                        iconEl.src = `http://${host}:${backendPort}/icons/${face.emotion}.png`;
+                        iconEl.src = `/icons/${face.emotion}.png`;
                         iconEl.style.display = 'block'; // Показываем иконку
                     } else {
                         faceEl.querySelector('.hud-emotion').innerText = "АНАЛИЗ...";
