@@ -1,0 +1,43 @@
+name: CI/CD Pipeline (Build Artifact -> Docker -> Deploy)
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Получение исходного кода из Git
+        uses: actions/checkout@v4
+
+      - name: 2. Сборка артефакта приложения (build.sh)
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
+      - name: 3. Сохранение собранного артефакта в хранилище GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: emotionator-release-artifact
+          path: artifacts/
+          retention-days: 30
+
+      - name: 4. Упаковка артефакта в Docker и тестовый запуск (deploy.sh)
+        run: |
+          chmod +x deploy.sh
+          ./deploy.sh
+          sleep 8
+          echo "Проверка метрики Health Check:"
+          curl -f http://localhost:8000/health
+          echo -e "\nПроверка метрик мониторинга:"
+          curl -f http://localhost:8000/api/v1/metrics
+
+      - name: 5. Деплой на публичный сервер Render
+        if: env.RENDER_DEPLOY_HOOK != ''
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          curl -f -X POST "$RENDER_DEPLOY_HOOK"
